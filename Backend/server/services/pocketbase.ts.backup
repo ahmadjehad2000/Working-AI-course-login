@@ -1,0 +1,338 @@
+import PocketBase from 'pocketbase';
+import type { 
+  InsertUser, SelectUser, InsertCourse, SelectCourse,
+  InsertModule, SelectModule, InsertEnrollment, SelectEnrollment,
+  InsertQuiz, SelectQuiz, InsertCertificate, SelectCertificate,
+  InsertBadge, SelectBadge, InsertActivity, SelectActivity
+} from '@shared/schema';
+
+export class PocketBaseService {
+  private pb: PocketBase;
+  private isAuthenticated = false;
+
+  constructor() {
+    this.pb = new PocketBase(process.env.POCKETBASE_URL || 'http://127.0.0.1:8090');
+  }
+
+  async authenticate(): Promise<void> {
+    if (this.isAuthenticated) return;
+
+    try {
+      await this.pb.admins.authWithPassword(
+        process.env.POCKETBASE_ADMIN_EMAIL || 'admin@admin.com',
+        process.env.POCKETBASE_ADMIN_PASSWORD || 'Admin123456!'
+      );
+      this.isAuthenticated = true;
+      console.log('✓ PocketBase admin authenticated');
+    } catch (error) {
+      console.error('✗ PocketBase authentication failed:', error);
+      throw new Error('Failed to authenticate with PocketBase');
+    }
+  }
+
+  // User operations
+  async createUser(userData: Omit<InsertUser, 'id' | 'created' | 'updated'>): Promise<SelectUser> {
+    await this.authenticate();
+    try {
+      const user = await this.pb.collection('users').create(userData);
+      return user as unknown as SelectUser;
+    } catch (error: any) {
+      console.error('Error creating user:', error);
+      throw new Error(error?.message || 'Failed to create user');
+    }
+  }
+
+  async getUserById(id: string): Promise<SelectUser | null> {
+    await this.authenticate();
+    try {
+      const user = await this.pb.collection('users').getOne(id);
+      return user as unknown as SelectUser;
+    } catch {
+      return null;
+    }
+  }
+
+  async getUserByEmail(email: string): Promise<SelectUser | null> {
+    await this.authenticate();
+    try {
+      const user = await this.pb.collection('app_users').getFirstListItem(`email = "${email}"`);
+      return user as unknown as SelectUser;
+    } catch {
+      return null;
+    }
+  }
+
+  async updateUser(id: string, data: Partial<InsertUser>): Promise<SelectUser> {
+    await this.authenticate();
+    const user = await this.pb.collection('app_users').update(id, data);
+    return user as unknown as SelectUser;
+  }
+
+  async getUsers(page = 1, limit = 20, filter?: string): Promise<{ items: SelectUser[], totalItems: number }> {
+    await this.authenticate();
+    const result = await this.pb.collection('app_users').getList(page, limit, {
+      filter: filter || 'is_active = true',
+      sort: '-created'
+    });
+    return {
+      items: result.items as unknown as SelectUser[],
+      totalItems: result.totalItems
+    };
+  }
+
+  // Course operations
+  async createCourse(courseData: InsertCourse): Promise<SelectCourse> {
+    await this.authenticate();
+    const course = await this.pb.collection('courses').create(courseData);
+    return course as unknown as SelectCourse;
+  }
+
+  async getCourseById(id: string, expand?: string): Promise<SelectCourse | null> {
+    await this.authenticate();
+    try {
+      const course = await this.pb.collection('courses').getOne(id, { expand });
+      return course as unknown as SelectCourse;
+    } catch {
+      return null;
+    }
+  }
+
+  async getCourses(page = 1, limit = 20, filter?: string): Promise<{ items: SelectCourse[], totalItems: number }> {
+    await this.authenticate();
+    const result = await this.pb.collection('courses').getList(page, limit, {
+      filter: filter || 'is_published = true',
+      sort: '-created_at'
+    });
+    return {
+      items: result.items as unknown as SelectCourse[],
+      totalItems: result.totalItems
+    };
+  }
+
+  async updateCourse(id: string, data: Partial<InsertCourse>): Promise<SelectCourse> {
+    await this.authenticate();
+    const course = await this.pb.collection('courses').update(id, data);
+    return course as unknown as SelectCourse;
+  }
+
+  async deleteCourse(id: string): Promise<void> {
+    await this.authenticate();
+    await this.pb.collection('courses').delete(id);
+  }
+
+  // Module operations
+  async createModule(moduleData: InsertModule): Promise<SelectModule> {
+    await this.authenticate();
+    const module = await this.pb.collection('modules').create(moduleData);
+    return module as unknown as SelectModule;
+  }
+
+  async getModulesByCourse(courseId: string): Promise<SelectModule[]> {
+    await this.authenticate();
+    const modules = await this.pb.collection('modules').getFullList({
+      filter: `course_id = "${courseId}"`,
+      sort: 'sequence_order'
+    });
+    return modules as unknown as SelectModule[];
+  }
+
+  async updateModule(id: string, data: Partial<InsertModule>): Promise<SelectModule> {
+    await this.authenticate();
+    const module = await this.pb.collection('modules').update(id, data);
+    return module as unknown as SelectModule;
+  }
+
+  async deleteModule(id: string): Promise<void> {
+    await this.authenticate();
+    await this.pb.collection('modules').delete(id);
+  }
+
+  // Enrollment operations
+  async createEnrollment(enrollmentData: InsertEnrollment): Promise<SelectEnrollment> {
+    await this.authenticate();
+    const enrollment = await this.pb.collection('course_enrollments').create(enrollmentData);
+    return enrollment as unknown as SelectEnrollment;
+  }
+
+  async getEnrollmentByUserAndCourse(userId: string, courseId: string): Promise<SelectEnrollment | null> {
+    await this.authenticate();
+    try {
+      const enrollment = await this.pb.collection('course_enrollments').getFirstListItem(
+        `user_id = "${userId}" && course_id = "${courseId}"`
+      );
+      return enrollment as unknown as SelectEnrollment;
+    } catch {
+      return null;
+    }
+  }
+
+  async getUserEnrollments(userId: string, expand?: string): Promise<SelectEnrollment[]> {
+    await this.authenticate();
+    const enrollments = await this.pb.collection('course_enrollments').getFullList({
+      filter: `user_id = "${userId}"`,
+      expand,
+      sort: '-enrolled_at'
+    });
+    return enrollments as unknown as SelectEnrollment[];
+  }
+
+  async updateEnrollment(id: string, data: Partial<InsertEnrollment>): Promise<SelectEnrollment> {
+    await this.authenticate();
+    const enrollment = await this.pb.collection('course_enrollments').update(id, data);
+    return enrollment as unknown as SelectEnrollment;
+  }
+
+  // Quiz operations
+  async getQuizzesByModule(moduleId: string): Promise<SelectQuiz[]> {
+    await this.authenticate();
+    const quizzes = await this.pb.collection('quizzes').getFullList({
+      filter: `module_id = "${moduleId}"`
+    });
+    return quizzes as unknown as SelectQuiz[];
+  }
+
+  async getQuizById(id: string): Promise<SelectQuiz | null> {
+    await this.authenticate();
+    try {
+      const quiz = await this.pb.collection('quizzes').getOne(id);
+      return quiz as unknown as SelectQuiz;
+    } catch {
+      return null;
+    }
+  }
+
+  async updateQuiz(id: string, data: Partial<InsertQuiz>): Promise<SelectQuiz> {
+    await this.authenticate();
+    const quiz = await this.pb.collection('quizzes').update(id, data);
+    return quiz as unknown as SelectQuiz;
+  }
+
+  // Certificate operations
+  async createCertificate(certificateData: InsertCertificate): Promise<SelectCertificate> {
+    await this.authenticate();
+    const certificate = await this.pb.collection('certificates').create(certificateData);
+    return certificate as unknown as SelectCertificate;
+  }
+
+  async getCertificatesByUser(userId: string, expand?: string): Promise<SelectCertificate[]> {
+    await this.authenticate();
+    const certificates = await this.pb.collection('certificates').getFullList({
+      filter: `user_id = "${userId}"`,
+      expand,
+      sort: '-issued_at'
+    });
+    return certificates as unknown as SelectCertificate[];
+  }
+
+  async getCertificateByVerificationCode(code: string): Promise<SelectCertificate | null> {
+    await this.authenticate();
+    try {
+      const certificate = await this.pb.collection('certificates').getFirstListItem(
+        `verification_code = "${code}"`
+      );
+      return certificate as unknown as SelectCertificate;
+    } catch {
+      return null;
+    }
+  }
+
+  // Badge operations
+  async createBadge(badgeData: InsertBadge): Promise<SelectBadge> {
+    await this.authenticate();
+    const badge = await this.pb.collection('user_badges').create(badgeData);
+    return badge as unknown as SelectBadge;
+  }
+
+  async getUserBadges(userId: string, expand?: string): Promise<SelectBadge[]> {
+    await this.authenticate();
+    const badges = await this.pb.collection('user_badges').getFullList({
+      filter: `user_id = "${userId}" && is_visible = true`,
+      expand,
+      sort: '-awarded_at'
+    });
+    return badges as unknown as SelectBadge[];
+  }
+
+  // Activity log operations
+  async logActivity(activityData: InsertActivity): Promise<SelectActivity> {
+    await this.authenticate();
+    const activity = await this.pb.collection('user_activity_logs').create(activityData);
+    return activity as unknown as SelectActivity;
+  }
+
+  async getUserActivities(userId: string, limit = 50): Promise<SelectActivity[]> {
+    await this.authenticate();
+    const activities = await this.pb.collection('user_activity_logs').getList(1, limit, {
+      sort: '-created'
+    });
+    return activities.items as unknown as SelectActivity[];
+  }
+
+  // Superuser operations
+  async createSuperuser(data: any): Promise<any> {
+    await this.authenticate();
+    const superuser = await this.pb.collection('_superusers').create(data);
+    return superuser;
+  }
+
+  async getSuperuserByEmail(email: string): Promise<any | null> {
+    await this.authenticate();
+    try {
+      const superuser = await this.pb.collection('_superusers').getFirstListItem(`email = "${email}"`);
+      return superuser;
+    } catch {
+      return null;
+    }
+  }
+
+  // Auth Origins operations
+  async createAuthOrigin(data: any): Promise<any> {
+    await this.authenticate();
+    const authOrigin = await this.pb.collection('_authOrigins').create(data);
+    return authOrigin;
+  }
+
+  // External Auths operations
+  async createExternalAuth(data: any): Promise<any> {
+    await this.authenticate();
+    const externalAuth = await this.pb.collection('_externalAuths').create(data);
+    return externalAuth;
+  }
+
+  // MFA operations
+  async createMFA(data: any): Promise<any> {
+    await this.authenticate();
+    const mfa = await this.pb.collection('_mfas').create(data);
+    return mfa;
+  }
+
+  // OTP operations
+  async createOTP(data: any): Promise<any> {
+    await this.authenticate();
+    const otp = await this.pb.collection('_otps').create(data);
+    return otp;
+  }
+
+  // Certificates operations
+  async createCertificate(data: any): Promise<any> {
+    await this.authenticate();
+    const certificate = await this.pb.collection('certificates').create(data);
+    return certificate;
+  }
+
+  // User Activity Logs operations
+  async logActivity(data: any): Promise<any> {
+    await this.authenticate();
+    const activity = await this.pb.collection('user_activity_logs').create(data);
+    return activity;
+  }
+
+  // User Sessions operations
+  async createUserSession(data: any): Promise<any> {
+    await this.authenticate();
+    const session = await this.pb.collection('user_sessions').create(data);
+    return session;
+  }
+}
+
+export const pocketBaseService = new PocketBaseService();

@@ -1,0 +1,74 @@
+{
+  "id": "b35c144f6ae0",
+  "title": "python",
+  "difficulty": "beginner",
+  "content_type": "academic",
+  "overview": "This beginner's course on Python programming is designed to take learners from no coding experience to a solid understanding of Python. With an emphasis on clarity and practicality, each module provides hands-on exercises and real-world examples to ensure learners can apply their skills effectively.",
+  "objectives": [
+    "Understand basic Python syntax and semantics",
+    "Write and debug simple Python programs",
+    "Utilize Python data structures effectively",
+    "Implement basic control flow and functions"
+  ],
+  "modules": [
+    {
+      "title": "Introduction to Python",
+      "description": "Learners will gain a foundational understanding of Python programming, including installation and basic syntax.",
+      "topics": [
+        "History and features of Python",
+        "Installing Python and setting up the environment",
+        "Basic syntax and data types"
+      ],
+      "content": "Python, created by Guido van Rossum and first released in 1991, is a high-level, interpreted language known for its readability and versatility. This module begins with the rich history of Python and its evolution to become one of the most popular programming languages today. You'll start by installing Python on your system, setting up your development environment, and writing your first 'Hello, World!' program. The basic syntax of Python includes understanding variables, data types such as integers, floats, and strings, and how to perform basic operations with them. By the end of this module, you'll be familiar with using Python's interactive shell to test code snippets and understand error messages. Real-world examples include simple mathematical calculations and text manipulations.",
+      "examples": [
+        "Using Python to calculate the area of a circle",
+        "Writing a simple program to convert temperatures"
+      ],
+      "exercises": [
+        "Install Python and write a 'Hello, World!' program",
+        "Create a program that asks for user's name and greets them"
+      ]
+    },
+    {
+      "title": "Working with Data Structures",
+      "description": "Learners will explore Python's built-in data structures and learn how to manipulate them efficiently.",
+      "topics": [
+        "Lists and tuples",
+        "Dictionaries and sets",
+        "Data manipulation techniques"
+      ],
+      "content": "Data structures are crucial in organizing and storing data efficiently. In this module, you'll delve into Python's built-in data structures such as lists, tuples, dictionaries, and sets. Lists are ordered collections that allow duplicate elements, while tuples are immutable lists. Dictionaries are key-value pairs useful for mapping information, and sets are collections of unique elements. You'll learn operations like adding, removing, and accessing elements, as well as common methods for manipulating these data structures. Through practical exercises, you'll understand how to choose the appropriate data structure for various tasks. By the end of this module, you'll be able to perform operations such as sorting, filtering, and merging datasets.",
+      "examples": [
+        "Using a list to store a collection of student names",
+        "Creating a dictionary to map student IDs to their scores"
+      ],
+      "exercises": [
+        "Create a list of your favorite movies and print them",
+        "Develop a dictionary that stores the names of countries and their capitals"
+      ]
+    },
+    {
+      "title": "Control Flow and Functions",
+      "description": "Master the control flow statements and learn how to create reusable functions in Python.",
+      "topics": [
+        "Conditional statements",
+        "Loops",
+        "Defining and calling functions"
+      ],
+      "content": "Control flow is essential in directing the execution of a program. This module introduces you to conditional statements such as if, elif, and else, which allow your program to make decisions. You'll also learn about loops, including for and while loops, which enable repetitive execution of code blocks. Functions are blocks of reusable code that perform specific tasks, and you'll learn how to define, call, and pass parameters to functions. By the end of this module, you'll be able to write efficient and organized code that leverages control flow and functions for various applications. Real-world examples include creating a function to calculate the factorial of a number and using loops to iterate over a list of items.",
+      "examples": [
+        "Using an if statement to check if a number is positive or negative",
+        "Creating a function to calculate the area of a rectangle"
+      ],
+      "exercises": [
+        "Write a program that prints numbers from 1 to 10 using a loop",
+        "Create a function that takes a list of numbers and returns their sum"
+      ]
+    }
+  ],
+  "domain": "Other",
+  "tags": [],
+  "estimated_hours": 12,
+  "quality": null,
+  "created_at": "2025-11-22T23:45:57.231869"
+}

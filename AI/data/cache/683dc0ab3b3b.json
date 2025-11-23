@@ -1,0 +1,110 @@
+{
+  "id": "683dc0ab3b3b",
+  "title": "Web Development Fundamentals",
+  "difficulty": "beginner",
+  "content_type": "academic",
+  "overview": "This course provides a comprehensive introduction to web development, guiding learners through fundamental concepts and practical skills needed to build engaging and functional websites. Through progressive modules, participants will gain hands-on experience and theoretical knowledge, laying the groundwork for advanced web development learning.",
+  "objectives": [
+    "Understand the structure and components of a website",
+    "Develop basic web pages using HTML, CSS, and JavaScript",
+    "Apply web development tools and best practices",
+    "Troubleshoot and optimize web pages for performance and accessibility"
+  ],
+  "modules": [
+    {
+      "title": "Introduction to Web Development",
+      "description": "Learners will master the basics of how websites work, including the roles of clients and servers.",
+      "topics": [
+        "Web architecture",
+        "Client-server model",
+        "Internet protocols"
+      ],
+      "content": "Web development is the process of creating websites and web applications that run online on a browser. It involves several key components and technologies that work together to deliver a seamless user experience. At its core, a website is a collection of files stored on a server, which are accessed by users through a web browser. This module introduces you to the client-server model, where the client (browser) requests resources, and the server responds by delivering the requested web pages. Understanding the basic structure of the web, including the role of HTTP/HTTPS protocols and DNS, is essential for any web developer. Websites are built using a combination of HTML for structure, CSS for styling, and JavaScript for interactivity. These technologies form the foundation of web development and are crucial for creating functional and aesthetically pleasing web pages.",
+      "examples": [
+        "A news website where the client requests the latest articles from the server.",
+        "An e-commerce platform that uses a server to manage product data and client interactions."
+      ],
+      "exercises": [
+        "Research and outline the steps involved in a typical client-server interaction.",
+        "Set up a basic local server using software like XAMPP or WAMP."
+      ]
+    },
+    {
+      "title": "HTML: The Building Blocks of the Web",
+      "description": "Learners will gain proficiency in using HTML to create structured web pages.",
+      "topics": [
+        "HTML elements and attributes",
+        "Document structure",
+        "Semantic HTML"
+      ],
+      "content": "HTML, or HyperText Markup Language, is the standard language used to create web pages. It provides the basic structure of a website by using elements and attributes that define the content and layout of a page. An HTML document starts with a doctype declaration and is wrapped in HTML tags, which include a head and a body. The head contains metadata and links to scripts or stylesheets, while the body contains the actual content. Semantic HTML involves using elements that convey meaning, such as <header>, <footer>, <article>, and <section>, which improve accessibility and SEO. Learning to use different HTML elements effectively allows developers to create well-structured and easy-to-maintain web pages.",
+      "examples": [
+        "A simple HTML page with a header, paragraph, and an ordered list.",
+        "Using semantic tags to create a blog layout with articles and sections."
+      ],
+      "exercises": [
+        "Create a basic webpage with a title, headings, paragraphs, and lists.",
+        "Use semantic HTML to build a simple layout for a personal portfolio."
+      ]
+    },
+    {
+      "title": "Styling with CSS",
+      "description": "Learners will learn how to apply styles to web pages using CSS, enhancing the visual presentation of their content.",
+      "topics": [
+        "CSS syntax and selectors",
+        "Box model",
+        "Responsive design"
+      ],
+      "content": "Cascading Style Sheets (CSS) is a stylesheet language used to describe the presentation of a document written in HTML or XML. CSS allows developers to apply styles such as colors, fonts, and spacing to HTML elements, creating visually appealing web pages. The language uses a selector-based syntax to target HTML elements and apply styles. Understanding the box model is crucial, as it defines how elements are sized and spaced, including content, padding, border, and margin. Responsive design is a key aspect of modern web development, ensuring that websites look great on devices of all sizes, from desktops to smartphones. Techniques like media queries and flexible grid layouts enable developers to build responsive interfaces that adapt to different screen sizes.",
+      "examples": [
+        "Changing the background color of a webpage using CSS.",
+        "Using a CSS grid to create a responsive photo gallery."
+      ],
+      "exercises": [
+        "Style a webpage with a custom font, color scheme, and layout using CSS.",
+        "Implement a responsive navigation bar using flexbox or grid."
+      ]
+    },
+    {
+      "title": "JavaScript: Bringing Interactivity to the Web",
+      "description": "Learners will understand how to use JavaScript to add interactive features to web pages.",
+      "topics": [
+        "JavaScript syntax",
+        "DOM manipulation",
+        "Event handling"
+      ],
+      "content": "JavaScript is a versatile programming language that allows developers to create dynamic and interactive web pages. It enables the manipulation of the Document Object Model (DOM), which represents the structure of a webpage. By using JavaScript, developers can respond to user actions like clicks or keypresses, update content dynamically, and create animations. JavaScript syntax includes variables, functions, loops, and conditionals, which are essential for building interactive features. Event handling is a critical concept, allowing developers to define what happens when users interact with different elements on the page. JavaScript is a powerful tool for enhancing user experience and making web applications more engaging.",
+      "examples": [
+        "Using JavaScript to create a dropdown menu that appears when a button is clicked.",
+        "Implementing a simple image slider with next and previous buttons."
+      ],
+      "exercises": [
+        "Build a JavaScript function that changes the content of a paragraph when a button is clicked.",
+        "Create an interactive form that validates user input before submission."
+      ]
+    },
+    {
+      "title": "Web Development Tools and Best Practices",
+      "description": "Learners will explore essential tools and practices that enhance web development efficiency and quality.",
+      "topics": [
+        "Version control with Git",
+        "Web development frameworks",
+        "Performance optimization"
+      ],
+      "content": "Web development tools and best practices are essential for creating high-quality websites efficiently. Version control systems like Git allow developers to track changes to their code and collaborate with others. Understanding how to use Git commands and platforms like GitHub is crucial for managing projects. Web development frameworks, such as React or Angular, provide pre-built components and libraries that simplify complex tasks and improve productivity. Performance optimization involves techniques like minifying code, compressing images, and using Content Delivery Networks (CDNs) to reduce load times and improve user experience. Adopting best practices, such as writing clean and maintainable code, ensures that web projects are scalable and easy to manage.",
+      "examples": [
+        "Using Git to commit changes and push code to a remote repository.",
+        "Implementing a responsive design framework like Bootstrap to speed up development."
+      ],
+      "exercises": [
+        "Set up a Git repository and practice basic commands like commit, push, and pull.",
+        "Use a web development framework to create a simple single-page application."
+      ]
+    }
+  ],
+  "domain": "Other",
+  "tags": [],
+  "estimated_hours": 40,
+  "quality": null,
+  "created_at": "2025-11-22T23:46:40.598191"
+}

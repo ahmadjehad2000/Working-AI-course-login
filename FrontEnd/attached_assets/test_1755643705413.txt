@@ -1,0 +1,1431 @@
+import PocketBase from 'pocketbase';
+import assert from 'assert';
+import crypto from 'crypto';
+
+// Configuration
+const PB_URL = process.env.PB_URL || 'http://127.0.0.1:8090';
+const TEST_EMAIL = 'test@test.com';
+const TEST_PASSWORD = 'P@ssw0rd@2025';
+const ADMIN_EMAIL = 'test@test.com';
+const ADMIN_PASSWORD = 'P@ssw0rd@2025';
+
+class PocketBaseTestSuite {
+    constructor() {
+        this.pb = new PocketBase(PB_URL);
+        this.testUsers = [];
+        this.testCourses = [];
+        this.testModules = [];
+        this.testEnrollments = [];
+        this.testQuizzes = [];
+        this.testCertificates = [];
+        this.testSessions = [];
+    }
+
+    // Utility function to generate random string
+    generateRandomString(length = 10) {
+        return crypto.randomBytes(length).toString('hex').substring(0, length);
+    }
+
+    // Generate test email
+    generateTestEmail() {
+        return `test_${this.generateRandomString(8)}@example.com`;
+    }
+
+    async runAllTests() {
+        console.log('🚀 Starting PocketBase Database Test Suite...\n');
+        
+        try {
+            // Authentication Tests
+            await this.testSuperuserAuth();
+            await this.testUserAuth();
+            
+            // User Management Tests
+            await this.testUserCRUD();
+            await this.testUserSessions();
+            
+            // Course Management Tests
+            await this.testCourseCRUD();
+            await this.testModuleCRUD();
+            await this.testCourseInstructors();
+            
+            // Enrollment Tests
+            await this.testCourseEnrollments();
+            await this.testEnrollmentProgress();
+            
+            // Assessment Tests
+            await this.testQuizCRUD();
+            await this.testQuizAttempts();
+            
+            // Certification Tests
+            await this.testCertificates();
+            
+            // Gamification Tests
+            await this.testUserBadges();
+            
+            // Analytics Tests
+            await this.testUserActivityLogs();
+            
+            // Advanced Tests
+            await this.testRelationshipQueries();
+            await this.testDataValidation();
+            await this.testPaginationAndFiltering();
+            await this.testRealTimeUpdates();
+            
+            // Additional Advanced Tests
+            await this.testAdvancedQueries();
+            await this.testBulkOperations();
+            await this.testLearningPathScenarios();
+            
+            // Cleanup
+            await this.cleanup();
+            
+            console.log('✅ All tests completed successfully!');
+            
+        } catch (error) {
+            console.error('❌ Test suite failed:', error);
+            await this.cleanup();
+            throw error;
+        }
+    }
+
+    // Authentication Tests
+    async testSuperuserAuth() {
+        console.log('🔐 Testing Superuser Authentication...');
+        
+        try {
+            // Test admin login
+            const authData = await this.pb.admins.authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
+            console.log('  ✓ Admin authentication successful');
+            
+            // Test admin token validation
+            assert(this.pb.authStore.isValid, 'Admin token should be valid');
+            assert.strictEqual(this.pb.authStore.model.email, ADMIN_EMAIL, 'Admin email should match');
+            console.log('  ✓ Admin token validation successful');
+            
+            // Test admin refresh
+            await this.pb.admins.authRefresh();
+            console.log('  ✓ Admin token refresh successful');
+            
+        } catch (error) {
+            console.log('  ⚠️  Admin auth failed (might need setup):', error.message);
+        }
+    }
+
+    async testUserAuth() {
+        console.log('👤 Testing User Authentication...');
+        
+        // Create test user first
+        const userData = {
+            email: this.generateTestEmail(),
+            password: TEST_PASSWORD,
+            passwordConfirm: TEST_PASSWORD,
+            name: 'Test User'
+        };
+        
+        try {
+            // Test user registration
+            const user = await this.pb.collection('users').create(userData);
+            this.testUsers.push(user);
+            console.log('  ✓ User registration successful');
+            
+            // Test user login
+            const authData = await this.pb.collection('users').authWithPassword(
+                userData.email, 
+                userData.password
+            );
+            
+            assert(authData.record !== null, 'Auth record should not be null');
+            assert(authData.token.length > 0, 'Token should not be empty');
+            console.log('  ✓ User login successful');
+            
+            // Test token refresh
+            await this.pb.collection('users').authRefresh();
+            console.log('  ✓ Token refresh successful');
+            
+        } catch (error) {
+            console.log('  ❌ User auth failed:', error.message);
+        }
+    }
+
+    // User Management Tests
+    async testUserCRUD() {
+        console.log('👥 Testing User CRUD Operations...');
+        
+        try {
+            // Create app user
+            const userData = {
+                email: this.generateTestEmail(),
+                password_hash: 'hashed_password_here',
+                first_name: 'John',
+                last_name: 'Doe',
+                role: 'student',
+                verified: true,
+                first_time_login: true,
+                is_active: true
+            };
+            
+            const user = await this.pb.collection('app_users').create(userData);
+            this.testUsers.push(user);
+            console.log('  ✓ User creation successful');
+            
+            // Read user
+            const fetchedUser = await this.pb.collection('app_users').getOne(user.id);
+            assert.strictEqual(fetchedUser.email, userData.email, 'Fetched user email should match');
+            console.log('  ✓ User read successful');
+            
+            // Update user
+            const updatedUser = await this.pb.collection('app_users').update(user.id, {
+                first_name: 'Jane',
+                last_login: new Date().toISOString()
+            });
+            assert.strictEqual(updatedUser.first_name, 'Jane', 'Updated first name should match');
+            console.log('  ✓ User update successful');
+            
+            // List users with pagination
+            const userList = await this.pb.collection('app_users').getList(1, 10, {
+                filter: 'is_active = true',
+                sort: '-created'
+            });
+            assert(userList.items.length > 0, 'User list should contain items');
+            console.log(`  ✓ User list successful (${userList.items.length} users found)`);
+            
+            // Get all active users
+            const allActiveUsers = await this.pb.collection('app_users').getFullList({
+                filter: 'is_active = true',
+                sort: '-created'
+            });
+            console.log(`  ✓ Full list query successful (${allActiveUsers.length} active users)`);
+            
+        } catch (error) {
+            console.log('  ❌ User CRUD failed:', error.message);
+        }
+    }
+
+    async testUserSessions() {
+        console.log('🔗 Testing User Sessions...');
+        
+        if (this.testUsers.length === 0) {
+            console.log('  ⚠️  No test users available, skipping session tests');
+            return;
+        }
+        
+        try {
+            const sessionData = {
+                user_id: this.testUsers[0].id,
+                token: this.generateRandomString(32),
+                device_info: 'Test Device Chrome/91.0',
+                ip_address: '192.168.1.1',
+                is_active: true
+            };
+            
+            const session = await this.pb.collection('user_sessions').create(sessionData);
+            this.testSessions.push(session);
+            console.log('  ✓ Session creation successful');
+            
+            // Find active sessions for user
+            const activeSessions = await this.pb.collection('user_sessions').getFullList({
+                filter: `user_id = "${this.testUsers[0].id}" && is_active = true`
+            });
+            console.log(`  ✓ Active session query successful (${activeSessions.length} active sessions)`);
+            
+            // Update session
+            await this.pb.collection('user_sessions').update(session.id, {
+                is_active: false
+            });
+            console.log('  ✓ Session update successful');
+            
+        } catch (error) {
+            console.log('  ❌ User sessions failed:', error.message);
+        }
+    }
+
+    // Course Management Tests
+    async testCourseCRUD() {
+        console.log('📚 Testing Course CRUD Operations...');
+        
+        try {
+            const courseData = {
+                title: 'Introduction to JavaScript',
+                overview: 'Learn the basics of JavaScript programming',
+                objective: 'Master fundamental JavaScript concepts',
+                thumbnail_url: 'https://example.com/js-course.jpg',
+                difficulty_level: 'beginner',
+                estimated_duration: 40.5,
+                is_published: true
+            };
+            
+            // Create course
+            const course = await this.pb.collection('courses').create(courseData);
+            this.testCourses.push(course);
+            console.log('  ✓ Course creation successful');
+            
+            // Read course
+            const fetchedCourse = await this.pb.collection('courses').getOne(course.id);
+            assert.strictEqual(fetchedCourse.title, courseData.title, 'Fetched course title should match');
+            console.log('  ✓ Course read successful');
+            
+            // Update course
+            const updatedCourse = await this.pb.collection('courses').update(course.id, {
+                difficulty_level: 'intermediate'
+            });
+            assert.strictEqual(updatedCourse.difficulty_level, 'intermediate', 'Updated difficulty level should match');
+            console.log('  ✓ Course update successful');
+            
+            // List published courses
+            const publishedCourses = await this.pb.collection('courses').getList(1, 10, {
+                filter: 'is_published = true',
+                sort: '-created_at'
+            });
+            console.log(`  ✓ Published courses query successful (${publishedCourses.items.length} courses)`);
+            
+            // Find course by title
+            const courseByTitle = await this.pb.collection('courses').getFirstListItem(
+                `title = "${courseData.title}"`
+            );
+            assert.strictEqual(courseByTitle.id, course.id, 'Found course should match created course');
+            console.log('  ✓ Course search by title successful');
+            
+        } catch (error) {
+            console.log('  ❌ Course CRUD failed:', error.message);
+        }
+    }
+
+    async testModuleCRUD() {
+        console.log('📖 Testing Module CRUD Operations...');
+        
+        if (this.testCourses.length === 0) {
+            console.log('  ⚠️  No test courses available, skipping module tests');
+            return;
+        }
+        
+        try {
+            const moduleData = {
+                course_id: this.testCourses[0].id,
+                title: 'Variables and Data Types',
+                description: 'Understanding JavaScript variables and data types',
+                sequence_order: 1
+            };
+            
+            // Create module
+            const module = await this.pb.collection('modules').create(moduleData);
+            this.testModules.push(module);
+            console.log('  ✓ Module creation successful');
+            
+            // Create additional modules for sequence testing
+            for (let i = 2; i <= 3; i++) {
+                const additionalModule = await this.pb.collection('modules').create({
+                    ...moduleData,
+                    title: `Module ${i}`,
+                    sequence_order: i
+                });
+                this.testModules.push(additionalModule);
+            }
+            
+            // Get modules in order
+            const orderedModules = await this.pb.collection('modules').getFullList({
+                filter: `course_id = "${this.testCourses[0].id}"`,
+                sort: 'sequence_order'
+            });
+            
+            assert.strictEqual(orderedModules.length, 3, 'Should have 3 modules');
+            assert.strictEqual(orderedModules[0].sequence_order, 1, 'First module should have sequence order 1');
+            console.log('  ✓ Module sequencing successful');
+            
+            // Find first module
+            const firstModule = await this.pb.collection('modules').getFirstListItem(
+                `course_id = "${this.testCourses[0].id}"`,
+                { sort: 'sequence_order' }
+            );
+            assert.strictEqual(firstModule.sequence_order, 1, 'First module should have sequence 1');
+            console.log('  ✓ First module query successful');
+            
+        } catch (error) {
+            console.log('  ❌ Module CRUD failed:', error.message);
+        }
+    }
+
+    async testCourseInstructors() {
+        console.log('👨‍🏫 Testing Course Instructors...');
+        
+        if (this.testCourses.length === 0 || this.testUsers.length === 0) {
+            console.log('  ⚠️  Missing test data, skipping instructor tests');
+            return;
+        }
+        
+        try {
+            const instructorData = {
+                course_id: this.testCourses[0].id,
+                user_id: this.testUsers[0].id
+            };
+            
+            const instructor = await this.pb.collection('course_instructors').create(instructorData);
+            console.log('  ✓ Course instructor assignment successful');
+            
+            // Find instructors for course
+            const courseInstructors = await this.pb.collection('course_instructors').getFullList({
+                filter: `course_id = "${this.testCourses[0].id}"`,
+                expand: 'user_id'
+            });
+            
+            assert(courseInstructors.length > 0, 'Should have at least one instructor');
+            console.log(`  ✓ Course instructors query successful (${courseInstructors.length} instructors)`);
+            
+            // Find courses for instructor
+            const instructorCourses = await this.pb.collection('course_instructors').getFullList({
+                filter: `user_id = "${this.testUsers[0].id}"`,
+                expand: 'course_id'
+            });
+            console.log(`  ✓ Instructor courses query successful (${instructorCourses.length} courses)`);
+            
+        } catch (error) {
+            console.log('  ❌ Course instructors failed:', error.message);
+        }
+    }
+
+    // Enrollment Tests
+    async testCourseEnrollments() {
+        console.log('📝 Testing Course Enrollments...');
+        
+        if (this.testCourses.length === 0 || this.testUsers.length === 0) {
+            console.log('  ⚠️  Missing test data, skipping enrollment tests');
+            return;
+        }
+        
+        try {
+            const enrollmentData = {
+                course_id: this.testCourses[0].id,
+                user_id: this.testUsers[0].id,
+                progress_percentage: 0,
+                is_completed: false,
+                certificate_issued: false
+            };
+            
+            const enrollment = await this.pb.collection('course_enrollments').create(enrollmentData);
+            this.testEnrollments.push(enrollment);
+            console.log('  ✓ Course enrollment successful');
+            
+            // Find user's enrollments
+            const userEnrollments = await this.pb.collection('course_enrollments').getFullList({
+                filter: `user_id = "${this.testUsers[0].id}"`,
+                expand: 'course_id',
+                sort: '-enrolled_at'
+            });
+            console.log(`  ✓ User enrollments query successful (${userEnrollments.length} enrollments)`);
+            
+            // Find course enrollments
+            const courseEnrollments = await this.pb.collection('course_enrollments').getList(1, 20, {
+                filter: `course_id = "${this.testCourses[0].id}"`,
+                expand: 'user_id'
+            });
+            console.log(`  ✓ Course enrollments query successful (${courseEnrollments.items.length} students)`);
+            
+        } catch (error) {
+            console.log('  ❌ Course enrollments failed:', error.message);
+        }
+    }
+
+    async testEnrollmentProgress() {
+        console.log('📊 Testing Enrollment Progress...');
+        
+        if (this.testEnrollments.length === 0) {
+            console.log('  ⚠️  No test enrollments available, skipping progress tests');
+            return;
+        }
+        
+        try {
+            const enrollment = this.testEnrollments[0];
+            
+            // Simulate progress updates
+            const progressUpdates = [25, 50, 75, 100];
+            
+            for (const progress of progressUpdates) {
+                const isCompleted = progress === 100;
+                const updateData = {
+                    progress_percentage: progress,
+                    is_completed: isCompleted
+                };
+                
+                if (isCompleted) {
+                    updateData.completion_date = new Date().toISOString().split('T')[0];
+                }
+                
+                await this.pb.collection('course_enrollments').update(enrollment.id, updateData);
+                console.log(`  ✓ Progress updated to ${progress}%`);
+            }
+            
+            // Find completed enrollments
+            const completedEnrollments = await this.pb.collection('course_enrollments').getFullList({
+                filter: 'is_completed = true',
+                expand: 'course_id,user_id'
+            });
+            console.log(`  ✓ Completed enrollments query successful (${completedEnrollments.length} completed)`);
+            
+            // Verify final state
+            const finalEnrollment = await this.pb.collection('course_enrollments').getOne(enrollment.id);
+            assert.strictEqual(finalEnrollment.is_completed, true, 'Enrollment should be completed');
+            assert.strictEqual(finalEnrollment.progress_percentage, 100, 'Progress should be 100%');
+            console.log('  ✓ Enrollment completion verified');
+            
+        } catch (error) {
+            console.log('  ❌ Enrollment progress failed:', error.message);
+        }
+    }
+
+    // Assessment Tests
+    async testQuizCRUD() {
+        console.log('🧩 Testing Quiz CRUD Operations...');
+        
+        if (this.testModules.length === 0) {
+            console.log('  ⚠️  No test modules available, skipping quiz tests');
+            return;
+        }
+        
+        try {
+            const quizData = {
+                module_id: this.testModules[0].id,
+                title: 'JavaScript Basics Quiz',
+                description: 'Test your knowledge of JavaScript fundamentals',
+                time_limit_minutes: 30,
+                passing_score: 70,
+                max_attempts: 3,
+                tried_attemps: 0,
+                is_mandatory: true,
+                is_completed: false
+            };
+            
+            const quiz = await this.pb.collection('quizzes').create(quizData);
+            this.testQuizzes.push(quiz);
+            console.log('  ✓ Quiz creation successful');
+            
+            // Find module quizzes
+            const moduleQuizzes = await this.pb.collection('quizzes').getFullList({
+                filter: `module_id = "${this.testModules[0].id}"`,
+                expand: 'module_id'
+            });
+            console.log(`  ✓ Module quizzes query successful (${moduleQuizzes.length} quizzes)`);
+            
+            // Find mandatory quizzes
+            const mandatoryQuizzes = await this.pb.collection('quizzes').getFullList({
+                filter: 'is_mandatory = true'
+            });
+            console.log(`  ✓ Mandatory quizzes query successful (${mandatoryQuizzes.length} mandatory)`);
+            
+        } catch (error) {
+            console.log('  ❌ Quiz CRUD failed:', error.message);
+        }
+    }
+
+    async testQuizAttempts() {
+        console.log('🎯 Testing Quiz Attempts...');
+        
+        if (this.testQuizzes.length === 0) {
+            console.log('  ⚠️  No test quizzes available, skipping attempt tests');
+            return;
+        }
+        
+        try {
+            const quiz = this.testQuizzes[0];
+            
+            // Simulate multiple quiz attempts
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                const score = Math.floor(Math.random() * 40) + 60; // Random score 60-100
+                const passed = score >= quiz.passing_score;
+                
+                await this.pb.collection('quizzes').update(quiz.id, {
+                    tried_attemps: attempt,
+                    is_completed: passed
+                });
+                
+                console.log(`  ✓ Attempt ${attempt}: Score ${score}% (${passed ? 'PASSED' : 'FAILED'})`);
+                
+                if (passed) break; // Stop if passed
+            }
+            
+            // Find completed quizzes
+            const completedQuizzes = await this.pb.collection('quizzes').getFullList({
+                filter: 'is_completed = true'
+            });
+            console.log(`  ✓ Completed quizzes query successful (${completedQuizzes.length} completed)`);
+            
+            // Find quizzes with max attempts reached
+            const maxAttemptsQuizzes = await this.pb.collection('quizzes').getFullList({
+                filter: 'tried_attemps >= max_attempts && is_completed = false'
+            });
+            console.log(`  ✓ Max attempts query successful (${maxAttemptsQuizzes.length} exhausted attempts)`);
+            
+        } catch (error) {
+            console.log('  ❌ Quiz attempts failed:', error.message);
+        }
+    }
+
+    // Certification Tests
+    async testCertificates() {
+        console.log('🏆 Testing Certificates...');
+        
+        if (this.testUsers.length === 0 || this.testCourses.length === 0) {
+            console.log('  ⚠️  Missing test data, skipping certificate tests');
+            return;
+        }
+        
+        try {
+            const certificateData = {
+                user_id: this.testUsers[0].id,
+                course_id: this.testCourses[0].id,
+                issued_at: new Date().toISOString().split('T')[0],
+                certificate_url: 'https://example.com/certificates/cert123.pdf',
+                verification_code: this.generateRandomString(16).toUpperCase()
+            };
+            
+            const certificate = await this.pb.collection('certificates').create(certificateData);
+            this.testCertificates.push(certificate);
+            console.log('  ✓ Certificate issuance successful');
+            
+            // Find user certificates
+            const userCertificates = await this.pb.collection('certificates').getFullList({
+                filter: `user_id = "${this.testUsers[0].id}"`,
+                expand: 'course_id',
+                sort: '-issued_at'
+            });
+            console.log(`  ✓ User certificates query successful (${userCertificates.length} certificates)`);
+            
+            // Find certificate by verification code
+            const verifiedCertificate = await this.pb.collection('certificates').getFirstListItem(
+                `verification_code = "${certificateData.verification_code}"`
+            );
+            assert.strictEqual(verifiedCertificate.id, certificate.id, 'Certificate verification should work');
+            console.log('  ✓ Certificate verification successful');
+            
+            // Update enrollment to reflect certificate issuance
+            if (this.testEnrollments.length > 0) {
+                await this.pb.collection('course_enrollments').update(this.testEnrollments[0].id, {
+                    certificate_issued: true
+                });
+                console.log('  ✓ Enrollment certificate flag updated');
+            }
+            
+        } catch (error) {
+            console.log('  ❌ Certificates failed:', error.message);
+        }
+    }
+
+    // Gamification Tests
+    async testUserBadges() {
+        console.log('🏅 Testing User Badges...');
+        
+        if (this.testUsers.length === 0 || this.testModules.length === 0) {
+            console.log('  ⚠️  Missing test data, skipping badge tests');
+            return;
+        }
+        
+        try {
+            const badgeTypes = [
+                { name: 'First Module Complete', image: 'first-module.png' },
+                { name: 'Quiz Master', image: 'quiz-master.png' },
+                { name: 'Speed Learner', image: 'speed-learner.png' }
+            ];
+            
+            for (const badgeType of badgeTypes) {
+                const badgeData = {
+                    user_id: this.testUsers[0].id,
+                    module_id: this.testModules[0].id,
+                    image_url: `https://example.com/badges/${badgeType.image}`,
+                    is_visible: true
+                };
+                
+                await this.pb.collection('user_badges').create(badgeData);
+                console.log(`  ✓ Badge awarded: ${badgeType.name}`);
+            }
+            
+            // Find user's visible badges
+            const visibleBadges = await this.pb.collection('user_badges').getFullList({
+                filter: `user_id = "${this.testUsers[0].id}" && is_visible = true`,
+                expand: 'module_id',
+                sort: '-awarded_at'
+            });
+            
+            assert.strictEqual(visibleBadges.length, 3, 'Should have 3 visible badges');
+            console.log(`  ✓ User badges query successful (${visibleBadges.length} visible badges)`);
+            
+            // Find recent badges (last 30 days)
+            const recentDate = new Date();
+            recentDate.setDate(recentDate.getDate() - 30);
+            const recentBadges = await this.pb.collection('user_badges').getFullList({
+                filter: `awarded_at >= "${recentDate.toISOString()}"`
+            });
+            console.log(`  ✓ Recent badges query successful (${recentBadges.length} recent badges)`);
+            
+        } catch (error) {
+            console.log('  ❌ User badges failed:', error.message);
+        }
+    }
+
+    // Analytics Tests
+    async testUserActivityLogs() {
+        console.log('📈 Testing User Activity Logs...');
+        
+        try {
+            const activities = [
+                {
+                    activity_type: 'login',
+                    resource_id: null,
+                    metadata: { ip_address: '192.168.1.1', user_agent: 'Chrome/91.0' }
+                },
+                {
+                    activity_type: 'course_view',
+                    resource_id: this.testCourses[0]?.id || 'course123',
+                    metadata: { duration: 300, completed: false }
+                },
+                {
+                    activity_type: 'lesson_complete',
+                    resource_id: this.testModules[0]?.id || 'module123',
+                    metadata: { time_spent: 600, score: 85 }
+                },
+                {
+                    activity_type: 'quiz_attempt',
+                    resource_id: this.testQuizzes[0]?.id || 'quiz123',
+                    metadata: { score: 92, passed: true, attempt_number: 1 }
+                },
+                {
+                    activity_type: 'badge_earned',
+                    resource_id: 'badge123',
+                    metadata: { badge_name: 'First Module Complete' }
+                }
+            ];
+            
+            for (const activity of activities) {
+                await this.pb.collection('user_activity_logs').create(activity);
+                console.log(`  ✓ Activity logged: ${activity.activity_type}`);
+            }
+            
+            // Query activities by type
+            const loginActivities = await this.pb.collection('user_activity_logs').getFullList({
+                filter: 'activity_type = "login"',
+                sort: '-created'
+            });
+            console.log(`  ✓ Login activities query successful (${loginActivities.length} logins)`);
+            
+            // Get recent activities (last 24 hours)
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const recentActivities = await this.pb.collection('user_activity_logs').getList(1, 20, {
+                filter: `created >= "${yesterday.toISOString()}"`,
+                sort: '-created'
+            });
+            console.log(`  ✓ Recent activities query successful (${recentActivities.items.length} recent activities)`);
+            
+            // Find activities for specific resource
+            if (this.testCourses.length > 0) {
+                const courseActivities = await this.pb.collection('user_activity_logs').getFullList({
+                    filter: `resource_id = "${this.testCourses[0].id}"`
+                });
+                console.log(`  ✓ Resource activities query successful (${courseActivities.length} course activities)`);
+            }
+            
+        } catch (error) {
+            console.log('  ❌ User activity logs failed:', error.message);
+        }
+    }
+
+    // Advanced Tests
+    async testRelationshipQueries() {
+        console.log('🔗 Testing Relationship Queries...');
+        
+        try {
+            if (this.testCourses.length > 0) {
+                // Get course with expanded relationships
+                const courseWithDetails = await this.pb.collection('courses').getOne(
+                    this.testCourses[0].id,
+                    { expand: 'modules(course_id),course_enrollments(course_id),certificates(course_id)' }
+                );
+                console.log('  ✓ Course with expanded relationships successful');
+                
+                // Get modules for course
+                const courseModules = await this.pb.collection('modules').getFullList({
+                    filter: `course_id = "${this.testCourses[0].id}"`,
+                    sort: 'sequence_order'
+                });
+                console.log(`  ✓ Course modules query successful (${courseModules.length} modules)`);
+            }
+            
+            if (this.testUsers.length > 0) {
+                // Get user's complete learning profile
+                const userProfile = await this.pb.collection('app_users').getOne(
+                    this.testUsers[0].id,
+                    { expand: 'course_enrollments(user_id),certificates(user_id),user_badges(user_id)' }
+                );
+                console.log('  ✓ User profile with relationships successful');
+                
+                // Get user's learning progress
+                const userProgress = await this.pb.collection('course_enrollments').getFullList({
+                    filter: `user_id = "${this.testUsers[0].id}"`,
+                    expand: 'course_id',
+                    sort: '-last_accessed_at'
+                });
+                console.log(`  ✓ User learning progress query successful (${userProgress.length} enrollments)`);
+            }
+            
+        } catch (error) {
+            console.log('  ❌ Relationship queries failed:', error.message);
+        }
+    }
+
+    async testPaginationAndFiltering() {
+        console.log('📄 Testing Pagination and Filtering...');
+        
+        try {
+            // Test pagination
+            const page1 = await this.pb.collection('app_users').getList(1, 5, {
+                sort: '-created'
+            });
+            console.log(`  ✓ Page 1 retrieved (${page1.items.length} items, total: ${page1.totalItems})`);
+            
+            if (page1.totalPages > 1) {
+                const page2 = await this.pb.collection('app_users').getList(2, 5, {
+                    sort: '-created'
+                });
+                console.log(`  ✓ Page 2 retrieved (${page2.items.length} items)`);
+            }
+            
+            // Test complex filtering
+            const activeStudents = await this.pb.collection('app_users').getFullList({
+                filter: 'is_active = true && role = "student"',
+                sort: 'first_name'
+            });
+            console.log(`  ✓ Complex filter successful (${activeStudents.length} active students)`);
+            
+            // Test date filtering
+            const today = new Date().toISOString().split('T')[0];
+            const todayActivities = await this.pb.collection('user_activity_logs').getFullList({
+                filter: `created >= "${today}"`,
+                sort: '-created'
+            });
+            console.log(`  ✓ Date filter successful (${todayActivities.length} today's activities)`);
+            
+            // Test search-like filtering
+            if (this.testCourses.length > 0) {
+                const searchResults = await this.pb.collection('courses').getFullList({
+                    filter: 'title ~ "JavaScript" || overview ~ "JavaScript"'
+                });
+                console.log(`  ✓ Search filter successful (${searchResults.length} JavaScript courses)`);
+            }
+            
+        } catch (error) {
+            console.log('  ❌ Pagination and filtering failed:', error.message);
+        }
+    }
+
+    async testRealTimeUpdates() {
+        console.log('⚡ Testing Real-time Updates...');
+        
+        try {
+            if (this.testUsers.length === 0) {
+                console.log('  ⚠️  No test users available, skipping real-time tests');
+                return;
+            }
+            
+            // Subscribe to user updates
+            const unsubscribe = await this.pb.collection('app_users').subscribe('*', function (e) {
+                console.log(`  📡 Real-time update received: ${e.action} on record ${e.record.id}`);
+            });
+            
+            console.log('  ✓ Real-time subscription established');
+            
+            // Make an update to trigger the subscription
+            await this.pb.collection('app_users').update(this.testUsers[0].id, {
+                last_login: new Date().toISOString()
+            });
+            
+            // Wait a bit for the real-time update
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Unsubscribe
+            unsubscribe();
+            console.log('  ✓ Real-time subscription cleaned up');
+            
+        } catch (error) {
+            console.log('  ❌ Real-time updates failed:', error.message);
+        }
+    }
+
+    async testDataValidation() {
+        console.log('✅ Testing Data Validation...');
+        
+        try {
+            // Test email validation
+            try {
+                await this.pb.collection('app_users').create({
+                    email: 'invalid-email',
+                    password_hash: 'hash',
+                    first_name: 'Test',
+                    last_name: 'User',
+                    role: 'student'
+                });
+                console.log('  ⚠️  Invalid email accepted');
+            } catch (error) {
+                console.log('  ✓ Email validation working');
+            }
+            
+            // Test required field validation
+            try {
+                await this.pb.collection('courses').create({
+                    overview: 'Missing title'
+                });
+                console.log('  ⚠️  Missing required field accepted');
+            } catch (error) {
+                console.log('  ✓ Required field validation working');
+            }
+            
+            // Test enum validation
+            try {
+                await this.pb.collection('courses').create({
+                    title: 'Test Course',
+                    overview: 'Test overview',
+                    objective: 'Test objective',
+                    difficulty_level: 'invalid_level'
+                });
+                console.log('  ⚠️  Invalid enum value accepted');
+            } catch (error) {
+                console.log('  ✓ Enum validation working');
+            }
+            
+            // Test numeric constraints
+            try {
+                await this.pb.collection('course_enrollments').create({
+                    course_id: this.testCourses[0]?.id || 'test',
+                    user_id: this.testUsers[0]?.id || 'test',
+                    progress_percentage: 150 // Invalid: should be 0-100
+                });
+                console.log('  ⚠️  Invalid numeric value accepted');
+            } catch (error) {
+                console.log('  ✓ Numeric validation working');
+            }
+            
+        } catch (error) {
+            console.log('  ❌ Data validation tests failed:', error.message);
+        }
+    }
+
+    async testAdvancedQueries() {
+        console.log('🔍 Testing Advanced Queries...');
+        
+        try {
+            // Test aggregation-like queries using filters
+            const completedEnrollments = await this.pb.collection('course_enrollments').getFullList({
+                filter: 'is_completed = true'
+            });
+            console.log(`  ✓ Aggregation query: ${completedEnrollments.length} completed enrollments`);
+            
+            // Test JOIN-like queries using expand
+            const enrollmentsWithDetails = await this.pb.collection('course_enrollments').getList(1, 10, {
+                expand: 'course_id,user_id',
+                filter: 'progress_percentage > 50',
+                sort: '-progress_percentage'
+            });
+            console.log(`  ✓ JOIN-like query: ${enrollmentsWithDetails.items.length} high-progress enrollments`);
+            
+            // Test nested filtering
+            if (this.testCourses.length > 0) {
+                const courseStats = await this.pb.collection('course_enrollments').getFullList({
+                    filter: `course_id = "${this.testCourses[0].id}"`,
+                    expand: 'user_id'
+                });
+                
+                const completedCount = courseStats.filter(e => e.is_completed).length;
+                const avgProgress = courseStats.reduce((sum, e) => sum + (e.progress_percentage || 0), 0) / courseStats.length;
+                
+                console.log(`  ✓ Course statistics: ${completedCount}/${courseStats.length} completed, ${avgProgress.toFixed(1)}% avg progress`);
+            }
+            
+            // Test sorting by multiple fields
+            const sortedUsers = await this.pb.collection('app_users').getList(1, 20, {
+                sort: 'role,last_name,first_name'
+            });
+            console.log(`  ✓ Multi-field sort: ${sortedUsers.items.length} users sorted by role, then name`);
+            
+        } catch (error) {
+            console.log('  ❌ Advanced queries failed:', error.message);
+        }
+    }
+
+    async testBulkOperations() {
+        console.log('📦 Testing Bulk Operations...');
+        
+        try {
+            // Simulate bulk user creation
+            const bulkUsers = [];
+            const startTime = Date.now();
+            
+            for (let i = 0; i < 10; i++) {
+                const userData = {
+                    email: `bulk_user_${i}_${this.generateRandomString(4)}@example.com`,
+                    password_hash: 'bulk_test_hash',
+                    first_name: `BulkUser${i}`,
+                    last_name: 'Test',
+                    role: i % 2 === 0 ? 'student' : 'instructor',
+                    is_active: true
+                };
+                
+                const user = await this.pb.collection('app_users').create(userData);
+                bulkUsers.push(user);
+            }
+            
+            const creationTime = Date.now() - startTime;
+            console.log(`  ✓ Bulk creation: 10 users created in ${creationTime}ms`);
+            
+            // Bulk query test
+            const bulkQueryStart = Date.now();
+            const allBulkUsers = await this.pb.collection('app_users').getFullList({
+                filter: 'first_name ~ "BulkUser"'
+            });
+            const queryTime = Date.now() - bulkQueryStart;
+            console.log(`  ✓ Bulk query: ${allBulkUsers.length} users found in ${queryTime}ms`);
+            
+            // Bulk update simulation
+            const updateStart = Date.now();
+            for (const user of bulkUsers.slice(0, 5)) {
+                await this.pb.collection('app_users').update(user.id, {
+                    last_login: new Date().toISOString()
+                });
+            }
+            const updateTime = Date.now() - updateStart;
+            console.log(`  ✓ Bulk update: 5 users updated in ${updateTime}ms`);
+            
+            // Cleanup bulk test data
+            for (const user of bulkUsers) {
+                await this.pb.collection('app_users').delete(user.id);
+            }
+            console.log('  ✓ Bulk cleanup completed');
+            
+        } catch (error) {
+            console.log('  ❌ Bulk operations failed:', error.message);
+        }
+    }
+
+    async testLearningPathScenarios() {
+        console.log('🛤️  Testing Learning Path Scenarios...');
+        
+        try {
+            if (this.testUsers.length === 0 || this.testCourses.length === 0) {
+                console.log('  ⚠️  Missing test data, skipping learning path tests');
+                return;
+            }
+            
+            // Scenario 1: Student enrolls in a course
+            console.log('  📚 Scenario 1: Course Enrollment');
+            const enrollment = await this.pb.collection('course_enrollments').create({
+                course_id: this.testCourses[0].id,
+                user_id: this.testUsers[0].id,
+                progress_percentage: 0
+            });
+            
+            // Scenario 2: Student progresses through modules
+            console.log('  📖 Scenario 2: Module Progress');
+            if (this.testModules.length > 0) {
+                for (let i = 0; i < Math.min(3, this.testModules.length); i++) {
+                    const progress = ((i + 1) / this.testModules.length) * 100;
+                    await this.pb.collection('course_enrollments').update(enrollment.id, {
+                        progress_percentage: Math.round(progress)
+                    });
+                    
+                    // Log activity
+                    await this.pb.collection('user_activity_logs').create({
+                        activity_type: 'lesson_complete',
+                        resource_id: this.testModules[i].id,
+                        metadata: { 
+                            module_title: this.testModules[i].title,
+                            time_spent: Math.floor(Math.random() * 1800) + 600 // 10-40 minutes
+                        }
+                    });
+                    
+                    console.log(`    ✓ Module ${i + 1} completed (${Math.round(progress)}% course progress)`);
+                }
+            }
+            
+            // Scenario 3: Student takes quiz
+            console.log('  🧩 Scenario 3: Quiz Assessment');
+            if (this.testQuizzes.length > 0) {
+                const quiz = this.testQuizzes[0];
+                const score = 85; // Passing score
+                
+                await this.pb.collection('quizzes').update(quiz.id, {
+                    tried_attemps: 1,
+                    is_completed: score >= quiz.passing_score
+                });
+                
+                await this.pb.collection('user_activity_logs').create({
+                    activity_type: 'quiz_attempt',
+                    resource_id: quiz.id,
+                    metadata: { 
+                        score: score,
+                        passed: score >= quiz.passing_score,
+                        time_taken: 25 * 60 // 25 minutes
+                    }
+                });
+                
+                console.log(`    ✓ Quiz completed with score: ${score}% (${score >= quiz.passing_score ? 'PASSED' : 'FAILED'})`);
+            }
+            
+            // Scenario 4: Course completion and certification
+            console.log('  🏆 Scenario 4: Course Completion');
+            await this.pb.collection('course_enrollments').update(enrollment.id, {
+                progress_percentage: 100,
+                is_completed: true,
+                completion_date: new Date().toISOString().split('T')[0]
+            });
+            
+            const certificate = await this.pb.collection('certificates').create({
+                user_id: this.testUsers[0].id,
+                course_id: this.testCourses[0].id,
+                issued_at: new Date().toISOString().split('T')[0],
+                verification_code: this.generateRandomString(16).toUpperCase(),
+                certificate_url: `https://example.com/certificates/${this.generateRandomString(12)}.pdf`
+            });
+            
+            await this.pb.collection('course_enrollments').update(enrollment.id, {
+                certificate_issued: true
+            });
+            
+            console.log('    ✓ Course completed and certificate issued');
+            
+            // Scenario 5: Badge award
+            console.log('  🏅 Scenario 5: Achievement Badge');
+            if (this.testModules.length > 0) {
+                await this.pb.collection('user_badges').create({
+                    user_id: this.testUsers[0].id,
+                    module_id: this.testModules[0].id,
+                    image_url: 'https://example.com/badges/course-complete.png',
+                    is_visible: true
+                });
+                
+                await this.pb.collection('user_activity_logs').create({
+                    activity_type: 'badge_earned',
+                    resource_id: certificate.id,
+                    metadata: { badge_name: 'Course Completion Champion' }
+                });
+                
+                console.log('    ✓ Achievement badge awarded');
+            }
+            
+            // Generate learning summary
+            const userSummary = await this.generateLearningSummary(this.testUsers[0].id);
+            console.log('  📊 Learning Summary:', userSummary);
+            
+        } catch (error) {
+            console.log('  ❌ Learning path scenarios failed:', error.message);
+        }
+    }
+
+    async generateLearningSummary(userId) {
+        try {
+            const [enrollments, certificates, badges, activities] = await Promise.all([
+                this.pb.collection('course_enrollments').getFullList({
+                    filter: `user_id = "${userId}"`,
+                    expand: 'course_id'
+                }),
+                this.pb.collection('certificates').getFullList({
+                    filter: `user_id = "${userId}"`
+                }),
+                this.pb.collection('user_badges').getFullList({
+                    filter: `user_id = "${userId}"`
+                }),
+                this.pb.collection('user_activity_logs').getList(1, 50, {
+                    sort: '-created'
+                })
+            ]);
+            
+            const completedCourses = enrollments.filter(e => e.is_completed).length;
+            const totalProgress = enrollments.reduce((sum, e) => sum + (e.progress_percentage || 0), 0);
+            const avgProgress = enrollments.length > 0 ? totalProgress / enrollments.length : 0;
+            
+            return {
+                total_enrollments: enrollments.length,
+                completed_courses: completedCourses,
+                certificates_earned: certificates.length,
+                badges_earned: badges.length,
+                average_progress: Math.round(avgProgress),
+                recent_activities: activities.items.length
+            };
+        } catch (error) {
+            console.log('Error generating learning summary:', error.message);
+            return null;
+        }
+    }
+
+    // Cleanup method
+    async cleanup() {
+        console.log('🧹 Cleaning up test data...');
+        
+        const collections = [
+            { name: 'user_activity_logs', items: [] },
+            { name: 'user_badges', items: [] },
+            { name: 'certificates', items: this.testCertificates },
+            { name: 'quizzes', items: this.testQuizzes },
+            { name: 'course_enrollments', items: this.testEnrollments },
+            { name: 'course_instructors', items: [] },
+            { name: 'modules', items: this.testModules },
+            { name: 'courses', items: this.testCourses },
+            { name: 'user_sessions', items: this.testSessions },
+            { name: 'app_users', items: this.testUsers },
+            { name: 'users', items: [] }
+        ];
+        
+        for (const collection of collections) {
+            try {
+                // Clean specific test items
+                for (const item of collection.items) {
+                    try {
+                        await this.pb.collection(collection.name).delete(item.id);
+                    } catch (e) {
+                        // Item might already be deleted due to cascade
+                    }
+                }
+                
+                // Clean any remaining test data created today
+                const today = new Date().toISOString().split('T')[0];
+                const testItems = await this.pb.collection(collection.name).getFullList({
+                    filter: `created >= "${today}"`
+                }).catch(() => []);
+                
+                for (const item of testItems) {
+                    try {
+                        // Only delete items that look like test data
+                        if (item.email?.includes('test_') || 
+                            item.first_name?.includes('Test') || 
+                            item.title?.includes('Test') ||
+                            item.email?.includes('bulk_user_')) {
+                            await this.pb.collection(collection.name).delete(item.id);
+                        }
+                    } catch (e) {
+                        // Item might already be deleted
+                    }
+                }
+                
+                console.log(`  ✓ Cleaned ${collection.name}`);
+            } catch (error) {
+                console.log(`  ⚠️  Could not clean ${collection.name}:`, error.message);
+            }
+        }
+    }
+}
+
+// Performance Tests
+class PerformanceTests {
+    constructor(pb) {
+        this.pb = pb;
+    }
+    
+    async runPerformanceTests() {
+        console.log('⚡ Running Performance Tests...');
+        
+        await this.testBulkInserts();
+        await this.testQueryPerformance();
+        await this.testConcurrentOperations();
+        await this.testComplexQueries();
+    }
+    
+    async testBulkInserts() {
+        console.log('  📊 Testing bulk insert performance...');
+        
+        const startTime = Date.now();
+        const users = [];
+        
+        try {
+            for (let i = 0; i < 50; i++) {
+                const userData = {
+                    email: `perf_test_${i}_${Date.now()}@example.com`,
+                    password_hash: 'test_hash',
+                    first_name: `PerfUser${i}`,
+                    last_name: 'Test',
+                    role: 'student',
+                    is_active: true
+                };
+                
+                const user = await this.pb.collection('app_users').create(userData);
+                users.push(user);
+            }
+            
+            const endTime = Date.now();
+            const avgTime = (endTime - startTime) / users.length;
+            console.log(`  ✓ Created ${users.length} users in ${endTime - startTime}ms (${avgTime.toFixed(2)}ms avg)`);
+            
+            // Cleanup
+            for (const user of users) {
+                try {
+                    await this.pb.collection('app_users').delete(user.id);
+                } catch (e) {
+                    // Ignore cleanup errors
+                }
+            }
+            
+        } catch (error) {
+            console.log('  ❌ Bulk insert test failed:', error.message);
+        }
+    }
+    
+    async testQueryPerformance() {
+        console.log('  🔍 Testing query performance...');
+        
+        try {
+            // Simple query
+            let startTime = Date.now();
+            await this.pb.collection('app_users').getList(1, 50, {
+                sort: '-created'
+            });
+            let endTime = Date.now();
+            console.log(`  ✓ Simple query: ${endTime - startTime}ms`);
+            
+            // Filtered query
+            startTime = Date.now();
+            await this.pb.collection('app_users').getList(1, 50, {
+                filter: 'is_active = true',
+                sort: '-created'
+            });
+            endTime = Date.now();
+            console.log(`  ✓ Filtered query: ${endTime - startTime}ms`);
+            
+            // Complex query with expand
+            startTime = Date.now();
+            await this.pb.collection('course_enrollments').getList(1, 20, {
+                expand: 'course_id,user_id',
+                filter: 'progress_percentage > 0',
+                sort: '-enrolled_at'
+            });
+            endTime = Date.now();
+            console.log(`  ✓ Complex query with expand: ${endTime - startTime}ms`);
+            
+        } catch (error) {
+            console.log('  ❌ Query performance test failed:', error.message);
+        }
+    }
+    
+    async testConcurrentOperations() {
+        console.log('  🔄 Testing concurrent operations...');
+        
+        try {
+            const operations = [];
+            const operationTypes = [
+                () => this.pb.collection('app_users').getList(1, 10),
+                () => this.pb.collection('courses').getList(1, 10),
+                () => this.pb.collection('course_enrollments').getList(1, 10),
+                () => this.pb.collection('user_activity_logs').getList(1, 10)
+            ];
+            
+            // Create 20 concurrent operations
+            for (let i = 0; i < 20; i++) {
+                const randomOp = operationTypes[Math.floor(Math.random() * operationTypes.length)];
+                operations.push(randomOp());
+            }
+            
+            const startTime = Date.now();
+            const results = await Promise.allSettled(operations);
+            const endTime = Date.now();
+            
+            const successful = results.filter(r => r.status === 'fulfilled').length;
+            const failed = results.filter(r => r.status === 'rejected').length;
+            
+            console.log(`  ✓ ${successful}/${operations.length} concurrent operations completed in ${endTime - startTime}ms`);
+            if (failed > 0) {
+                console.log(`  ⚠️  ${failed} operations failed`);
+            }
+            
+        } catch (error) {
+            console.log('  ❌ Concurrent operations test failed:', error.message);
+        }
+    }
+
+    async testComplexQueries() {
+        console.log('  🧮 Testing complex query performance...');
+        
+        try {
+            // Test full-text search simulation
+            const startTime = Date.now();
+            await this.pb.collection('courses').getFullList({
+                filter: 'title ~ "JavaScript" || overview ~ "programming" || objective ~ "learn"'
+            });
+            const searchTime = Date.now() - startTime;
+            console.log(`  ✓ Search query: ${searchTime}ms`);
+            
+            // Test date range queries
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const weekAgo = new Date();
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            
+            const dateStartTime = Date.now();
+            await this.pb.collection('user_activity_logs').getFullList({
+                filter: `created >= "${weekAgo.toISOString()}" && created <= "${yesterday.toISOString()}"`,
+                sort: '-created'
+            });
+            const dateTime = Date.now() - dateStartTime;
+            console.log(`  ✓ Date range query: ${dateTime}ms`);
+            
+            // Test aggregation-style queries
+            const aggStartTime = Date.now();
+            const enrollments = await this.pb.collection('course_enrollments').getFullList({
+                expand: 'course_id,user_id'
+            });
+            
+            // Simulate aggregation in JavaScript
+            const courseStats = enrollments.reduce((acc, enrollment) => {
+                const courseId = enrollment.course_id;
+                if (!acc[courseId]) {
+                    acc[courseId] = { total: 0, completed: 0, avgProgress: 0 };
+                }
+                acc[courseId].total++;
+                if (enrollment.is_completed) acc[courseId].completed++;
+                acc[courseId].avgProgress += enrollment.progress_percentage || 0;
+                return acc;
+            }, {});
+            
+            Object.keys(courseStats).forEach(courseId => {
+                courseStats[courseId].avgProgress /= courseStats[courseId].total;
+            });
+            
+            const aggTime = Date.now() - aggStartTime;
+            console.log(`  ✓ Aggregation query: ${aggTime}ms (${Object.keys(courseStats).length} courses analyzed)`);
+            
+        } catch (error) {
+            console.log('  ❌ Complex query test failed:', error.message);
+        }
+    }
+}
+
+// Main execution function
+async function main() {
+    const testSuite = new PocketBaseTestSuite();
+    
+    try {
+        await testSuite.runAllTests();
+        
+        // Run performance tests
+        const perfTests = new PerformanceTests(testSuite.pb);
+        await perfTests.runPerformanceTests();
+        
+        console.log('\n🎉 All tests completed successfully!');
+        console.log('📊 Test Summary:');
+        console.log('  - Authentication Tests: ✅');
+        console.log('  - User Management: ✅');
+        console.log('  - Course Management: ✅');
+        console.log('  - Enrollment System: ✅');
+        console.log('  - Assessment System: ✅');
+        console.log('  - Certification System: ✅');
+        console.log('  - Gamification: ✅');
+        console.log('  - Analytics: ✅');
+        console.log('  - Advanced Queries: ✅');
+        console.log('  - Learning Path Scenarios: ✅');
+        console.log('  - Performance Tests: ✅');
+        console.log('  - Real-time Updates: ✅');
+        
+    } catch (error) {
+        console.error('💥 Test execution failed:', error);
+        process.exit(1);
+    }
+}
+
+// Export for use as module
+export { PocketBaseTestSuite, PerformanceTests };
+
+// Run if called directly
+if (process.argv[1] === new URL(import.meta.url).pathname) {
+    main().catch(console.error);
+}

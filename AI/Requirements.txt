@@ -1,0 +1,21 @@
+# AI Course Pro - Lean & Smart Requirements
+# Core
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic-settings==2.1.0
+python-dotenv==1.0.0
+
+# AI
+openai==1.3.5
+
+# Database & Cache
+pymongo==4.6.0
+motor==3.3.2  # Async MongoDB
+
+# CLI
+click==8.1.7
+rich==13.7.0  # Beautiful CLI output
+
+# Utils
+python-multipart==0.0.6
+httpx==0.25.2
